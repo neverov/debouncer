@@ -21,8 +21,6 @@ CRITERIA = {'sizeComparison': 'larger', 'size': 1}
 LABEL_IDS = ['UNREAD', 'INBOX']
 CREDENTIALS_FILE = 'debouncer_credentials.json'
 
-debounced_messages = 0
-
 def get_credentials():
     home_dir = os.path.expanduser('~')
     credential_dir = os.path.join(home_dir, '.credentials')
@@ -120,6 +118,7 @@ def messages_for_label(label_id, service):
     return messages
 
 def run(delay):
+    debounced_messages = 0
     while True:
         print('searching for debounced messages')
         service = build_service()
@@ -127,16 +126,14 @@ def run(delay):
         messages = messages_for_label(label_id, service)
         body = {'addLabelIds': LABEL_IDS,
                 'removeLabelIds': [label_id]}
-        if (debounced_messages != len(messages)):
-            # debounce to next cycle
+        if (debounced_messages != len(messages)): # debounce to next cycle
             debounced_messages = len(messages)
-        else:
-            # no new messages - time to move everything to inbox
+        else: # no new messages, time to move everything to inbox
             for m in messages:
                 id = m['id']
                 service.users().messages().modify(userId='me',
-                                              id=id,
-                                              body=body).execute()
+                                                  id=id,
+                                                  body=body).execute()
             print('moved {} messages to inbox'.format(len(messages)))
         print('sleeping for {}'.format(delay))
         time.sleep(delay)
@@ -151,6 +148,6 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'DebouncedInbox')
     parser.add_argument('-a', '--auth', nargs='?', const=True, default=False)
-    parser.add_argument('-d', '--delay', default=5, help='delay between debounced email checks in minutes')
+    parser.add_argument('-d', '--delay', default=5, type=int, help='delay between debounced email checks in minutes')
     args = parser.parse_args()
     main(args)
