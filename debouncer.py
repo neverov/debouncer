@@ -131,7 +131,7 @@ def run(delay):
             # debounce to next cycle
             debounced_messages = len(messages)
         else:
-            # no new messages – time to move everything to inbox
+            # no new messages - time to move everything to inbox
             for m in messages:
                 id = m['id']
                 service.users().messages().modify(userId='me',
