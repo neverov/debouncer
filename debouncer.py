@@ -21,6 +21,8 @@ CRITERIA = {'sizeComparison': 'larger', 'size': 1}
 LABEL_IDS = ['UNREAD', 'INBOX']
 CREDENTIALS_FILE = 'debouncer_credentials.json'
 
+debounced_messages = 0
+
 def get_credentials():
     home_dir = os.path.expanduser('~')
     credential_dir = os.path.join(home_dir, '.credentials')
@@ -119,18 +121,23 @@ def messages_for_label(label_id, service):
 
 def run(delay):
     while True:
-        print('searching for debonced messages')
+        print('searching for debounced messages')
         service = build_service()
         label_id = find_label(service)
         messages = messages_for_label(label_id, service)
         body = {'addLabelIds': LABEL_IDS,
                 'removeLabelIds': [label_id]}
-        for m in messages:
-            id = m['id']
-            service.users().messages().modify(userId='me',
+        if (debounced_messages != len(messages)):
+            # debounce to next cycle
+            debounced_messages = len(messages)
+        else:
+            # no new messages – time to move everything to inbox
+            for m in messages:
+                id = m['id']
+                service.users().messages().modify(userId='me',
                                               id=id,
                                               body=body).execute()
-        print('moved {} messages to inbox'.format(len(messages)))
+            print('moved {} messages to inbox'.format(len(messages)))
         print('sleeping for {}'.format(delay))
         time.sleep(delay)
 
