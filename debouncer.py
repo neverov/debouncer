@@ -28,6 +28,15 @@ CRITERIA = {'sizeComparison': 'larger', 'size': 1}
 LABEL_IDS = ['UNREAD', 'INBOX']
 CREDENTIALS_FILE = 'debouncer_credentials.json'
 
+def log(func):
+    def wrapper(*args, **kwargs):
+        logger.info('START:{}'.format(func.__name__))
+        result = func(*args, **kwargs)
+        logger.info('END:{}'.format(func.__name__))
+        return result
+    return wrapper
+
+@log
 def get_credentials():
     home_dir = os.path.expanduser('~')
     credential_dir = os.path.join(home_dir, '.credentials')
@@ -40,18 +49,19 @@ def get_credentials():
     if not credentials or credentials.invalid:
         flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
         flow.user_agent = APPLICATION_NAME
-        if flags:
-            credentials = tools.run_flow(flow, store, flags)
-        else: # Needed only for compatibility with Python 2.6
-            credentials = tools.run(flow, store)
+        flags = tools.argparser.parse_args(args=[])
+        credentials = tools.run_flow(flow, store, flags)
         logger.info('Storing credentials to ' + credential_path)
     return credentials
 
+@log
 def build_service():
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
-    return discovery.build('gmail', 'v1', http=http)
+    service = discovery.build('gmail', 'v1', http=http)
+    return service
 
+@log
 def find_label(service):
     result = service.users().labels().list(userId='me').execute()
     labels = result['labels']
@@ -61,6 +71,7 @@ def find_label(service):
     else:
         return None
 
+@log
 def create_label(service):
     body = {'name': LABEL_NAME,
             'labelListVisibility': 'labelShow',
@@ -68,11 +79,14 @@ def create_label(service):
     result = service.users().labels().create(userId='me', body=body).execute()
     return result['id']
 
+@log
 def find_filter(service):
+    logger.info('START:find_filter')
     result = service.users().settings().filters().list(userId='me').execute()
     if len(result) == 0:
         return None
     filters = result['filter']
+    logger.info('END:find_filter')
     for f in filters:
         exists = (f['action']['removeLabelIds'] == LABEL_IDS and
                   f['criteria'] == CRITERIA)
@@ -80,6 +94,7 @@ def find_filter(service):
             return f['id']
     return None
 
+@log
 def create_filter(labelId, service):
     body = {'criteria': CRITERIA,
             'action': {'removeLabelIds': LABEL_IDS,
@@ -87,26 +102,28 @@ def create_filter(labelId, service):
     result = service.users().settings().filters().create(userId='me', body=body).execute()
     return result['id']
 
+@log
 def authorize():
     logger.info('logging in to gmail')
     service = build_service()
 
     logger.info('checking special label in gmail')
     label_id = find_label(service)
-    if label_id is not None:
+    if label_id is None:
         logger.info('no special label found, creating one')
         label_id = create_label(service)
         logger.info('special label created')
     logger.info('special label exists, moving on')
 
     logger.info('checking special filter exists')
-    if find_filter(service) is not None:
+    if find_filter(service) is None:
         logger.info('no special filter found, creating one')
         create_filter(label_id, service)
         logger.info('special filter created')
     logger.info('special filter found, moving on')
     logger.info('user setup complete')
 
+@log
 def messages_for_label(label_id, service):
     response = service.users().messages().list(userId='me',
                                                labelIds=[label_id]).execute()
@@ -123,6 +140,7 @@ def messages_for_label(label_id, service):
 
     return messages
 
+@log
 def run(delay):
     logger.info('running debouncer with delay: {}'.format(delay))
     debounced_messages = 0
@@ -157,7 +175,7 @@ def main(args):
         run(args.delay)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description = 'DebouncedInbox')
+    parser = argparse.ArgumentParser(description='DebouncedInbox')
     parser.add_argument('-a', '--auth', nargs='?', const=True, default=False)
     parser.add_argument('-d', '--delay', default=300, type=int, help='delay between debounced email checks in seconds')
     args = parser.parse_args()
