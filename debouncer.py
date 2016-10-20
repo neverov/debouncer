@@ -3,11 +3,18 @@ import httplib2
 import os
 import time
 import argparse
+import logging
 
 from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
+
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s'))
+logger = logging.getLogger(__name__)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 SCOPES = ['https://mail.google.com/',
           'https://www.googleapis.com/auth/gmail.readonly',
@@ -37,7 +44,7 @@ def get_credentials():
             credentials = tools.run_flow(flow, store, flags)
         else: # Needed only for compatibility with Python 2.6
             credentials = tools.run(flow, store)
-        print('Storing credentials to ' + credential_path)
+        logger.info('Storing credentials to ' + credential_path)
     return credentials
 
 def build_service():
@@ -81,25 +88,24 @@ def create_filter(labelId, service):
     return result['id']
 
 def authorize():
-    print('logging in to gmail')
+    logger.info('logging in to gmail')
     service = build_service()
 
-    print('checking special label in gmail')
+    logger.info('checking special label in gmail')
     label_id = find_label(service)
     if label_id is not None:
-        print('no special label found, creating one')
+        logger.info('no special label found, creating one')
         label_id = create_label(service)
-        print('special label created')
-    print('special label exists, moving on')
+        logger.info('special label created')
+    logger.info('special label exists, moving on')
 
-    print('checking special filter exists')
+    logger.info('checking special filter exists')
     if find_filter(service) is not None:
-        print('no special filter found, creating one')
+        logger.info('no special filter found, creating one')
         create_filter(label_id, service)
-        print('special filter created')
-    print('special filter found, moving on')
-
-    print('user setup complete')
+        logger.info('special filter created')
+    logger.info('special filter found, moving on')
+    logger.info('user setup complete')
 
 def messages_for_label(label_id, service):
     response = service.users().messages().list(userId='me',
@@ -111,43 +117,48 @@ def messages_for_label(label_id, service):
     while 'nextPageToken' in response:
         page_token = response['nextPageToken']
         response = service.users().messages().list(userId=user_id,
-                                                 labelIds=[label_id],
-                                                 pageToken=page_token).execute()
+                                                   labelIds=[label_id],
+                                                   pageToken=page_token).execute()
         messages.extend(response['messages'])
 
     return messages
 
 def run(delay):
+    logger.info('running debouncer with delay: {}'.format(delay))
     debounced_messages = 0
     while True:
-        print('searching for debounced messages')
+        logger.info('searching for debounced messages')
         service = build_service()
         label_id = find_label(service)
         messages = messages_for_label(label_id, service)
         body = {'addLabelIds': LABEL_IDS,
                 'removeLabelIds': [label_id]}
-        if (debounced_messages != len(messages)): # debounce to next cycle
-            debounced_messages = len(messages)
+        messages_count = len(messages)
+        if (debounced_messages != messages_count): # debounce to next cycle
+            logger.info('debouncing to the next cycle with prev counter: {}, switching to next counter: {}'.format(debounced_messages,
+                                                                                                             messages_count))
+            debounced_messages = messages_count
         else: # no new messages, time to move everything to inbox
+            logger.info('moving {} messages to inbox'.format(messages_count))
             for m in messages:
                 id = m['id']
                 service.users().messages().modify(userId='me',
                                                   id=id,
                                                   body=body).execute()
-            print('moved {} messages to inbox'.format(len(messages)))
-        print('sleeping for {}'.format(delay))
+            logger.info('moved {} messages to inbox'.format(len(messages)))
+            debounced_messages = 0
+        logger.info('sleeping for {}'.format(delay))
         time.sleep(delay)
 
 def main(args):
     if args.auth:
         authorize()
     else:
-        delay = args.delay * 60 # to seconds
-        run(delay)
+        run(args.delay)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'DebouncedInbox')
     parser.add_argument('-a', '--auth', nargs='?', const=True, default=False)
-    parser.add_argument('-d', '--delay', default=5, type=int, help='delay between debounced email checks in minutes')
+    parser.add_argument('-d', '--delay', default=300, type=int, help='delay between debounced email checks in seconds')
     args = parser.parse_args()
     main(args)
