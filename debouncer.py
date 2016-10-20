@@ -24,7 +24,7 @@ SCOPES = ['https://mail.google.com/',
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'DebouncedInbox APP'
 LABEL_NAME = 'debouncer'
-CRITERIA = {'sizeComparison': 'larger', 'size': 1}
+CRITERIA = {'from': '(-me)', 'sizeComparison': 'larger', 'size': 1}
 LABEL_IDS = ['UNREAD', 'INBOX']
 CREDENTIALS_FILE = 'debouncer_credentials.json'
 
@@ -81,12 +81,11 @@ def create_label(service):
 
 @log
 def find_filter(service):
-    logger.info('START:find_filter')
     result = service.users().settings().filters().list(userId='me').execute()
     if len(result) == 0:
         return None
     filters = result['filter']
-    logger.info('END:find_filter')
+    logger.info(filters)
     for f in filters:
         exists = (f['action']['removeLabelIds'] == LABEL_IDS and
                   f['criteria'] == CRITERIA)
