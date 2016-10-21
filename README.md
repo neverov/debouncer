@@ -1,8 +1,11 @@
 # Installation
 
+If you don't have `pip` installed, run `sudo easy_install pip`.
+
 1. git clone git@github.com:neverov/debouncer.git
 2. cd debouncer
-3. chmod +x scripts/*
+3. Install dependencies: `pip install -r requirements.txt`
+4. chmod +x scripts/*
 
 # Authorizing
 
