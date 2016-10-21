@@ -20,12 +20,12 @@ In order to run debouncer you will have to authorize first:
 
 There are two options to run debouncer:
 
-1. run in the console as a python scripts
+1. run in the console as a python script
 2. run in background
 
 ## Running in the console
 
-Run `python debouncer`.
+Run `python debouncer.py`.
 To stop press CTRL-C.
 
 ## Running in background
