@@ -7,14 +7,18 @@
   The debouncer is {% if enabled %} enabled {% else %} disabled {% endif %}, the delay is set to {{delay}}.
 </div>
 <div>
-  <button>Start debouncer</button>
-  <button>Stop debouncer</button>
-
+  <form method='post' action='timer/start'>
+    <input type=submit value='Start debouncer' {% if enabled %}disabled{% endif %}></button>
+  </form>
+  <form method='post' action='timer/stop'>
+    <input type=submit value='Stop debouncer' {% if not enabled %}disabled{% endif %}></button>
+  </form>
 </div>
 <div>
   <form method='post' action='set-delay'>
     <label for='delay'>Delay: </label>
     <input type="text" name='delay' value="{{delay}}">
     <input type='submit' value='Save'>
+    Please restart the timer after saving new delay
   </form>
 </div>

@@ -1,0 +1,7 @@
+<!doctype html>
+<title>Admin page</title>
+
+<h2>Timers started for:</h2>
+{% for key, value in timers.iteritems() %}
+  <div>User: {{ key }}</div>
+{% endfor %}

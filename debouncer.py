@@ -12,6 +12,7 @@ from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
+from threading import Timer
 
 SCOPES = ['https://mail.google.com/',
           'https://www.googleapis.com/auth/userinfo.email',
@@ -37,6 +38,8 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 pp = pprint.PrettyPrinter(indent=2)
+
+timers = {}
 
 def log(func):
     def wrapper(*args, **kwargs):
@@ -130,40 +133,60 @@ def messages_for_label(label_id, service):
     return messages
 
 @log
-def run(delay):
-    logger.info('running debouncer with delay: {}'.format(delay))
-    debounced_messages = 0
-    while True:
-        logger.info('searching for debounced messages')
-        service = build_service()
-        label_id = find_label(service)
-        messages = messages_for_label(label_id, service)
-        body = {'addLabelIds': LABEL_IDS,
-                'removeLabelIds': [label_id]}
-        messages_count = len(messages)
-        if (debounced_messages != messages_count): # debounce to next cycle
-            logger.info('debouncing to the next cycle with prev counter: {}, switching to next counter: {}'.format(debounced_messages,
-                                                                                                             messages_count))
-            debounced_messages = messages_count
-        else: # no new messages, time to move everything to inbox
-            logger.info('moving {} messages to inbox'.format(messages_count))
-            for m in messages:
-                id = m['id']
-                service.users().messages().modify(userId='me',
-                                                  id=id,
-                                                  body=body).execute()
-            logger.info('moved {} messages to inbox'.format(len(messages)))
-            debounced_messages = 0
-        logger.info('sleeping for {}'.format(delay))
-        time.sleep(delay)
+def run(user, delay, credentials):
+    logger.info('running debouncer for user: {}'.format(user))
+    debounced_messages = timers[user]['messages']
+    logger.info('searching for debounced messages')
+    service = build_service(client.OAuth2Credentials.from_json(credentials))
+    label_id = find_label(service)
+    messages = messages_for_label(label_id, service)
+    body = {'addLabelIds': LABEL_IDS,
+            'removeLabelIds': [label_id]}
+    messages_count = len(messages)
+    if (debounced_messages != messages_count): # debounce to next cycle
+        logger.info('debouncing to the next cycle with prev counter: {}, switching to next counter: {}'.format(debounced_messages,
+                                                                                                         messages_count))
+        timers[user]['messages'] = messages_count
+    else: # no new messages, time to move everything to inbox
+        logger.info('moving {} messages to inbox'.format(messages_count))
+        for m in messages:
+            id = m['id']
+            service.users().messages().modify(userId='me',
+                                              id=id,
+                                              body=body).execute()
+        logger.info('moved {} messages to inbox'.format(len(messages)))
+        timers[user]['messages'] = 0
+    logger.info('run for user: {} completed'.format(user))
+    logger.info('restarting the timer')
+    timer = Timer(float(delay), run, [user, delay, credentials])
+    timer.start()
+    timers[user]['timer'] = timer    
+    logger.info('timer restarted')
 
 @app.route('/timer/start', methods=['POST'])
 def start():
-    return 'ok'
+    email = flask.session.get('email')
+    delay = flask.session.get('delay', 300)
+    credentials = flask.session.get('credentials')
+    logger.info('creating new timer for user: {} with delay: {}'.format(email, delay))
+    timer = Timer(float(delay), run, [email, delay, credentials])
+    timers.update({email: {'timer': timer, 'messages': 0}})
+    logger.info('timer created, starting')
+    timer.start()
+    return flask.redirect(flask.url_for('index'))
 
 @app.route('/timer/stop', methods=['POST'])
 def stop():
-    return 'ok'
+    email = flask.session.get('email')
+    logger.info('stopping timer for user: {}'.format(email))
+    timer = timers.pop(email, None)['timer']
+    if timer is not None:
+        logger.info('timer is running, stopping')
+        timer.cancel();
+    else:
+        logger.info('timer is stopped, no action required')
+    logger.info('timer stopped')
+    return flask.redirect(flask.url_for('index'))
 
 @app.route('/set-delay', methods=['POST'])
 def set_delay():
@@ -171,6 +194,10 @@ def set_delay():
     logger.info('setting user\'s timer to {}'.format(delay))
     flask.session['delay'] = delay
     return flask.redirect(flask.url_for('index'))
+
+@app.route('/admin')
+def admin():
+    return flask.render_template('admin.html', timers=timers)
 
 @app.route('/')
 def index():
@@ -182,11 +209,10 @@ def index():
         logger.info('token expired, redirecting to auth')
         return flask.redirect(flask.url_for('oauth2callback'))
     else:
-        creds = json.loads(credentials.to_json())
-        email = creds.get('id_token').get('email')
+        email = flask.session['email']
         logger.info('logged in user %s', email)
         authorize(credentials)
-        enabled = flask.session.get('enabled', False)
+        enabled = email in timers
         delay = flask.session.get('delay', 300)
         return flask.render_template('index.html', name=email, enabled=enabled, delay=delay)
 
@@ -204,6 +230,7 @@ def oauth2callback():
         auth_code = flask.request.args.get('code')
         credentials = flow.step2_exchange(auth_code)
         flask.session['credentials'] = credentials.to_json()
+        flask.session['email'] = json.loads(credentials.to_json()).get('id_token').get('email')
         # TODO store creds in the database
         return flask.redirect(flask.url_for('index'))
 
