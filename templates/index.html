@@ -9,5 +9,12 @@
 <div>
   <button>Start debouncer</button>
   <button>Stop debouncer</button>
-  <label>Delay: </label><input type="text" value="{{delay}}">
+
+</div>
+<div>
+  <form method='post' action='set-delay'>
+    <label for='delay'>Delay: </label>
+    <input type="text" name='delay' value="{{delay}}">
+    <input type='submit' value='Save'>
+  </form>
 </div>

@@ -47,24 +47,6 @@ def log(func):
     return wrapper
 
 @log
-def get_credentials():
-    home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-    credential_path = os.path.join(credential_dir,
-                                   CREDENTIALS_FILE)
-    store = Storage(credential_path)
-    credentials = store.get()
-    if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
-        flow.user_agent = APPLICATION_NAME
-        flags = tools.argparser.parse_args(args=[])
-        credentials = tools.run_flow(flow, store, flags)
-        logger.info('Storing credentials to ' + credential_path)
-    return credentials
-
-@log
 def build_service(credentials):
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('gmail', 'v1', http=http)
@@ -94,7 +76,6 @@ def find_filter(service):
     if len(result) == 0:
         return None
     filters = result['filter']
-    logger.info(filters)
     for f in filters:
         exists = (f['action']['removeLabelIds'] == LABEL_IDS and
                   f['criteria'] == CRITERIA)
@@ -184,11 +165,12 @@ def start():
 def stop():
     return 'ok'
 
-@app.route('/timer/<int:value>', methods=['POST'])
-def timer(value):
-    logger.info('setting user\'s timer to {}'.format(value))
-    # set user's timer to specified value
-    return 'ok'
+@app.route('/set-delay', methods=['POST'])
+def set_delay():
+    delay = flask.request.form['delay']
+    logger.info('setting user\'s timer to {}'.format(delay))
+    flask.session['delay'] = delay
+    return flask.redirect(flask.url_for('index'))
 
 @app.route('/')
 def index():
@@ -200,14 +182,13 @@ def index():
         logger.info('token expired, redirecting to auth')
         return flask.redirect(flask.url_for('oauth2callback'))
     else:
-        session = json.loads(credentials.to_json())
-        logger.info('logged in user')
+        creds = json.loads(credentials.to_json())
+        email = creds.get('id_token').get('email')
+        logger.info('logged in user %s', email)
         authorize(credentials)
-        logger.info(pp.pprint(session))
-        name = session.get('id_token').get('email')
-        enabled = session.get('enabled', False)
-        delay = session.get('delay', 300)
-        return flask.render_template('index.html', name=name, enabled=enabled, delay=delay)
+        enabled = flask.session.get('enabled', False)
+        delay = flask.session.get('delay', 300)
+        return flask.render_template('index.html', name=email, enabled=enabled, delay=delay)
 
 @app.route('/oauth2callback')
 def oauth2callback():
