@@ -1,2 +1,4 @@
 debouncer.log
 pid
+venv
+*.pyc
