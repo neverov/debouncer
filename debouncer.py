@@ -5,13 +5,30 @@ import time
 import argparse
 import logging
 import flask
+import json
+import pprint
 
 from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
 
+SCOPES = ['https://mail.google.com/',
+          'https://www.googleapis.com/auth/userinfo.email',
+          'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.modify',
+          'https://www.googleapis.com/auth/gmail.labels',
+          'https://www.googleapis.com/auth/gmail.settings.basic']
+CLIENT_SECRET_FILE = 'client_secret.json'
+APPLICATION_NAME = 'DebouncedInbox APP'
+APP_SECRET_KEY = 'VfedCzx,eT88kj7A33^K'
+LABEL_NAME = 'debouncer'
+CRITERIA = {'from': '(-me)', 'sizeComparison': 'larger', 'size': 1}
+LABEL_IDS = ['UNREAD', 'INBOX']
+CREDENTIALS_FILE = 'debouncer_credentials.json'
+
 app = flask.Flask(__name__)
+app.secret_key = APP_SECRET_KEY
 
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s'))
@@ -19,17 +36,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-SCOPES = ['https://mail.google.com/',
-          'https://www.googleapis.com/auth/gmail.readonly',
-          'https://www.googleapis.com/auth/gmail.modify',
-          'https://www.googleapis.com/auth/gmail.labels',
-          'https://www.googleapis.com/auth/gmail.settings.basic']
-CLIENT_SECRET_FILE = 'client_secret.json'
-APPLICATION_NAME = 'DebouncedInbox APP'
-LABEL_NAME = 'debouncer'
-CRITERIA = {'from': '(-me)', 'sizeComparison': 'larger', 'size': 1}
-LABEL_IDS = ['UNREAD', 'INBOX']
-CREDENTIALS_FILE = 'debouncer_credentials.json'
+pp = pprint.PrettyPrinter(indent=2)
 
 def log(func):
     def wrapper(*args, **kwargs):
@@ -58,8 +65,7 @@ def get_credentials():
     return credentials
 
 @log
-def build_service():
-    credentials = get_credentials()
+def build_service(credentials):
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('gmail', 'v1', http=http)
     return service
@@ -105,9 +111,9 @@ def create_filter(labelId, service):
     return result['id']
 
 @log
-def authorize():
+def authorize(credentials):
     logger.info('logging in to gmail')
-    service = build_service()
+    service = build_service(credentials)
 
     logger.info('checking special label in gmail')
     label_id = find_label(service)
@@ -170,24 +176,38 @@ def run(delay):
         logger.info('sleeping for {}'.format(delay))
         time.sleep(delay)
 
-def main(args):
-    if args.auth:
-        authorize()
-    else:
-        run(args.delay)
+@app.route('/timer/start', methods=['POST'])
+def start():
+    return 'ok'
+
+@app.route('/timer/stop', methods=['POST'])
+def stop():
+    return 'ok'
+
+@app.route('/timer/<int:value>', methods=['POST'])
+def timer(value):
+    logger.info('setting user\'s timer to {}'.format(value))
+    # set user's timer to specified value
+    return 'ok'
 
 @app.route('/')
 def index():
-  if 'credentials' not in flask.session:
-    return flask.redirect(flask.url_for('oauth2callback'))
-  credentials = client.OAuth2Credentials.from_json(flask.session['credentials'])
-  if credentials.access_token_expired:
-    return flask.redirect(flask.url_for('oauth2callback'))
-  else:
-    http_auth = credentials.authorize(httplib2.Http())
-    drive_service = discovery.build('drive', 'v2', http_auth)
-    files = drive_service.files().list().execute()
-    return json.dumps(files)
+    if 'credentials' not in flask.session:
+        logger.info('no credentials, redirecting to auth')
+        return flask.redirect(flask.url_for('oauth2callback'))
+    credentials = client.OAuth2Credentials.from_json(flask.session['credentials'])
+    if credentials.access_token_expired:
+        logger.info('token expired, redirecting to auth')
+        return flask.redirect(flask.url_for('oauth2callback'))
+    else:
+        session = json.loads(credentials.to_json())
+        logger.info('logged in user')
+        authorize(credentials)
+        logger.info(pp.pprint(session))
+        name = session.get('id_token').get('email')
+        enabled = session.get('enabled', False)
+        delay = session.get('delay', 300)
+        return flask.render_template('index.html', name=name, enabled=enabled, delay=delay)
 
 @app.route('/oauth2callback')
 def oauth2callback():
@@ -206,15 +226,11 @@ def oauth2callback():
         # TODO store creds in the database
         return flask.redirect(flask.url_for('index'))
 
-if __name__ == '__main__':
-    import uuid
-    app.secret_key = str(uuid.uuid4())
-    app.debug = True
-    app.run()
-    app.run()
+def main():
+    debug = True
+    port = 5000
+    logger.info('running web app on %s', port)
+    app.run(port=port, debug=debug)
 
-    parser = argparse.ArgumentParser(description='DebouncedInbox')
-    parser.add_argument('-a', '--auth', nargs='?', const=True, default=False)
-    parser.add_argument('-d', '--delay', default=300, type=int, help='delay between debounced email checks in seconds')
-    args = parser.parse_args()
-    main(args)
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,13 @@
+<!doctype html>
+<title>Dashboard</title>
+<h1>Hello {{name}}</h1>
+
+<h2>Controls</h2>
+<div>
+  The debouncer is {% if enabled %} enabled {% else %} disabled {% endif %}, the delay is set to {{delay}}.
+</div>
+<div>
+  <button>Start debouncer</button>
+  <button>Stop debouncer</button>
+  <label>Delay: </label><input type="text" value="{{delay}}">
+</div>
