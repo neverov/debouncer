@@ -160,7 +160,7 @@ def run(user, delay, credentials):
     logger.info('restarting the timer')
     timer = Timer(float(delay), run, [user, delay, credentials])
     timer.start()
-    timers[user]['timer'] = timer    
+    timers[user]['timer'] = timer
     logger.info('timer restarted')
 
 @app.route('/timer/start', methods=['POST'])
