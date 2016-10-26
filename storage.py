@@ -84,4 +84,4 @@ def save_timer(conn, user_id, enabled):
 @log.logfn(logger)
 def save_run(conn, user_id, messages):
     with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
-        return cur.execute("UPDATE users SET (messages, checked_at) = VALUES (%s, now()) WHERE user_id = %s", (messages, user_id))
+        return cur.execute("UPDATE users SET (messages, checked_at) = (%s, now()) WHERE user_id = %s", (messages, user_id))

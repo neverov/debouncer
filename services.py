@@ -12,6 +12,7 @@ from werkzeug.exceptions import Unauthorized
 LABEL_NAME = 'debouncer'
 CRITERIA = {'from': '(-me)', 'sizeComparison': 'larger', 'size': 1}
 LABEL_IDS = ['UNREAD', 'INBOX']
+TIMEOUT = 10.0
 
 logger = log.build_logger(__name__)
 
@@ -109,7 +110,7 @@ def messages_for_label(user_id, label_id, service):
 @log.logfn(logger)
 def start_timer(conn):
     logger.info('starting timer for debouncer')
-    timer = Timer(5.0, run, [conn, start_timer])
+    timer = Timer(TIMEOUT, run, [conn, start_timer])
     timer.daemon = True
     timer.start()
     return timer
