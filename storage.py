@@ -56,13 +56,18 @@ def get_credentials(conn, user_id):
         return res[0] if res is not None else None
 
 @log.logfn(logger)
+def get_timers(conn, user_id):
+    with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT user_id, timer_enabled, delay FROM users WHERE user_id = %s;", (user_id,))
+        return cur.fetchall()
+
+@log.logfn(logger)
 def get_timer(conn, user_id):
     with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("SELECT user_id, timer_enabled, delay, messages FROM users WHERE user_id = %s;", (user_id,))
         return cur.fetchone()
 
 @log.logfn(logger)
-def get_timers(conn, user_id):
+def save_timer(conn, user_id, enabled):
     with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("SELECT user_id, timer_enabled, delay FROM users WHERE user_id = %s;", (user_id,))
-        return cur.fetchall()
+        cur.execute("UPDATE users SET timer_enabled = %s WHERE user_id = %s", (enabled, user_id))

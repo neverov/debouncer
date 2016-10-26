@@ -23,27 +23,18 @@ app = flask.Flask(__name__)
 
 @app.route('/timer/start', methods=['POST'])
 def start():
-    email = flask.session.get('email')
-    delay = flask.session.get('delay', 300)
-    credentials = flask.session.get('credentials')
-    logger.info('creating new timer for user: {} with delay: {}'.format(email, delay))
-    timer = Timer(float(delay), run, [email, delay, credentials])
-    timers.update({email: {'timer': timer, 'messages': 0}})
-    logger.info('timer created, starting')
-    timer.start()
+    conn = app.config['CONNECTION']
+    user_id = flask.session['user_id']
+    logger.info('starting timer for user: {}')
+    storage.save_timer(conn, user_id, True)
     return flask.redirect(flask.url_for('index'))
 
 @app.route('/timer/stop', methods=['POST'])
 def stop():
-    email = flask.session.get('email')
-    logger.info('stopping timer for user: {}'.format(email))
-    timer = timers.pop(email, None)['timer']
-    if timer is not None:
-        logger.info('timer is running, stopping')
-        timer.cancel();
-    else:
-        logger.info('timer is stopped, no action required')
-    logger.info('timer stopped')
+    conn = app.config['CONNECTION']
+    user_id = flask.session['user_id']
+    logger.info('stopping timer for user: {}'.format(user_id))
+    storage.save_timer(conn, user_id, False)
     return flask.redirect(flask.url_for('index'))
 
 @app.route('/set-delay', methods=['POST'])
