@@ -49,8 +49,7 @@ def set_delay():
 @app.route('/admin')
 def admin():
     conn = app.config['CONNECTION']
-    user_id = flask.session['user_id']
-    timers = storage.get_timers(conn, user_id)
+    timers = storage.get_timers(conn)
     return flask.render_template('admin.html', timers=timers)
 
 @app.route('/')
@@ -116,6 +115,7 @@ def main():
     app.config['DEBUG'] = True
     app.config['SECRET_KEY'] = APP_SECRET_KEY
     app.config['CONNECTION'] = conn
+    app.config['TIMER'] = services.start_timer(conn)
 
     port = 5000
     logger.info('running web app on %s', port)

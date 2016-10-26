@@ -1,11 +1,12 @@
 import httplib2
 import storage
 import log
+import datetime
 
+from threading import Timer
 from apiclient import discovery, errors
 from oauth2client import client, tools
 from oauth2client.client import OAuth2Credentials
-from threading import Timer
 from werkzeug.exceptions import Unauthorized
 
 LABEL_NAME = 'debouncer'
@@ -106,35 +107,44 @@ def messages_for_label(user_id, label_id, service):
     return messages
 
 @log.logfn(logger)
-def run(user_id, delay, credentials):
-    logger.info('running debouncer for user: {}'.format(user_id))
-    debounced_messages = timers[user_id]['messages']
-    logger.info('searching for debounced messages')
-    service = build_service(client.OAuth2Credentials.from_json(credentials))
-    label_id = find_label(user_id, service)
-    messages = messages_for_label(user_id, label_id, service)
-    messages_count = len(messages)
-    if (debounced_messages != messages_count): # debounce to next cycle
-        logger.info('debouncing: last counter: {}, next counter: {}'.format(debounced_messages,
-                                                                            messages_count))
-        timers[user_id]['messages'] = messages_count
-    else: # no new messages, time to move everything to inbox
-        body = {'addLabelIds': LABEL_IDS,
-                'removeLabelIds': [label_id]}
-        logger.info('moving {} messages to inbox'.format(messages_count))
-        for m in messages:
-            id = m['id']
-            service.users().messages().modify(userId=user_id,
-                                              id=id,
-                                              body=body).execute()
-        logger.info('moved {} messages to inbox'.format(len(messages)))
-        timers[user_id]['messages'] = 0
-    logger.info('run for user: {} completed'.format(user_id))
-    logger.info('restarting the timer')
-    timer = Timer(float(delay), run, [user_id, delay, credentials])
+def start_timer(conn):
+    logger.info('starting timer for debouncer')
+    timer = Timer(5.0, run, [conn, start_timer])
+    timer.daemon = True
     timer.start()
-    timers[user_id]['timer'] = timer
-    logger.info('timer restarted')
+    return timer
+
+@log.logfn(logger)
+def run(conn, restart_fn):
+    now = datetime.datetime.now()
+    timers = storage.get_active_timers(conn)
+    logger.info('received active timers: {}'.format(timers))
+    for t in timers:
+        debounced_messages = t['messages']
+        user_id = t['user_id']
+        logger.info('searching for messages for user: {}'.format(user_id))
+        service = build_service(credentials(conn, user_id))
+        label_id = find_label(user_id, service)
+        messages = messages_for_label(user_id, label_id, service)
+        messages_count = len(messages)
+        if (debounced_messages != messages_count): # debounce to next cycle
+            logger.info('debouncing: last counter: {}, next counter: {}'.format(debounced_messages,
+                                                                                messages_count))
+            storage.save_run(conn, user_id, messages_count)
+        else: # no new messages, time to move everything to inbox
+            body = {'addLabelIds': LABEL_IDS,
+                    'removeLabelIds': [label_id]}
+            logger.info('moving {} messages to inbox'.format(messages_count))
+            for m in messages:
+                id = m['id']
+                service.users().messages().modify(userId=user_id,
+                                                  id=id,
+                                                  body=body).execute()
+            logger.info('moved {} messages to inbox'.format(len(messages)))
+            storage.save_run(conn, user_id, 0)
+        logger.info('run for user: {} completed'.format(user_id))
+        logger.info('timer restarted')
+    restart_fn(conn)
 
 @log.logfn(logger)
 def credentials(conn, user_id):

@@ -56,9 +56,18 @@ def get_credentials(conn, user_id):
         return res[0] if res is not None else None
 
 @log.logfn(logger)
-def get_timers(conn, user_id):
+def get_timers(conn):
     with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("SELECT user_id, timer_enabled, delay FROM users WHERE user_id = %s;", (user_id,))
+        cur.execute("SELECT user_id, timer_enabled, delay FROM users;")
+        return cur.fetchall()
+
+@log.logfn(logger)
+def get_active_timers(conn):
+    with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""SELECT user_id, messages
+                       FROM users
+                       WHERE timer_enabled = true AND
+                             (COALESCE(NULLIF(checked_at ,'-infinity'::timestamp), '-infinity'::timestamp) + delay * interval '1 second') <= now();""")
         return cur.fetchall()
 
 @log.logfn(logger)
@@ -71,3 +80,8 @@ def get_timer(conn, user_id):
 def save_timer(conn, user_id, enabled):
     with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("UPDATE users SET timer_enabled = %s WHERE user_id = %s", (enabled, user_id))
+
+@log.logfn(logger)
+def save_run(conn, user_id, messages):
+    with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+        return cur.execute("UPDATE users SET (messages, checked_at) = VALUES (%s, now()) WHERE user_id = %s", (messages, user_id))
