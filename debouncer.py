@@ -20,6 +20,13 @@ APP_SECRET_KEY = 'VfedCzx,eT88kj7A33^K'
 
 logger = log.build_logger(__name__)
 app = flask.Flask(__name__)
+conn = storage.connect(os.environ['DATABASE_URL'])
+storage.migrate(conn)
+
+app.config['DEBUG'] = True
+app.config['SECRET_KEY'] = APP_SECRET_KEY
+app.config['CONNECTION'] = conn
+app.config['TIMER'] = services.start_timer(conn)
 
 @app.route('/timer/start', methods=['POST'])
 def start():
@@ -108,18 +115,5 @@ def handle_unauthorized(error):
     logger.info('Unauthorized happened, redirecting to auth')
     return flask.redirect(flask.url_for('oauth2callback'))
 
-def main():
-    conn = storage.connect(os.environ['DATABASE_URL'])
-    storage.migrate(conn)
-
-    app.config['DEBUG'] = True
-    app.config['SECRET_KEY'] = APP_SECRET_KEY
-    app.config['CONNECTION'] = conn
-    app.config['TIMER'] = services.start_timer(conn)
-
-    port = 5000
-    logger.info('running web app on %s', port)
-    app.run(port=port)
-
 if __name__ == '__main__':
-    main()
+    app.run()

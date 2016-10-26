@@ -1,1 +1,1 @@
-web: gunicorn debouncer:app
+web: gunicorn wsgi:app
