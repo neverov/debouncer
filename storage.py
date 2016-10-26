@@ -11,7 +11,7 @@ logger = log.build_logger(__name__)
 
 @log.logfn(logger)
 def connect(db_url):
-    logger.info('connecting to: {}'.format(db_url))
+    logger.info('connecting to database)
     urlparse.uses_netloc.append("postgres")
     url = urlparse.urlparse(db_url)
     conn = psycopg2.connect(database=url.path[1:],
@@ -19,7 +19,7 @@ def connect(db_url):
                             password=url.password,
                             host=url.hostname,
                             port=url.port)
-    logger.info('connected to database: {}'.format(db_url))
+    logger.info('connected to database: {}'.format(conn))
     return conn
 
 @log.logfn(logger)
