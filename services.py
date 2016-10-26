@@ -11,7 +11,7 @@ from werkzeug.exceptions import Unauthorized
 
 LABEL_NAME = 'debouncer'
 CRITERIA = {'from': '(-me)', 'sizeComparison': 'larger', 'size': 1}
-LABEL_IDS = ['UNREAD', 'INBOX']
+LABEL_IDS = ['INBOX']
 TIMEOUT = 10.0
 
 logger = log.build_logger(__name__)
