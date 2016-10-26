@@ -24,25 +24,29 @@ def connect(db_url):
 
 @log.logfn(logger)
 def migrate(conn):
-    cur = conn.cursor()
-    cur.execute("""CREATE TABLE IF NOT EXISTS users (
-                     user_id text PRIMARY KEY,
-                     credentials jsonb,
-                     timer_enabled boolean,
-                     delay integer,
-                     messages integer,
-                     checked_at timestamp);""")
-    conn.commit()
-    cur.close()
+    with conn, conn.cursor() as cur:
+        return cur.execute("""CREATE TABLE IF NOT EXISTS users (
+                                user_id text PRIMARY KEY,
+                                credentials jsonb,
+                                timer_enabled boolean,
+                                delay integer,
+                                messages integer,
+                                checked_at timestamp
+                              );""")
 
 @log.logfn(logger)
 def save_user(conn, user_id, credentials):
     with conn, conn.cursor() as cur:
-        cur.execute("""INSERT INTO users (user_id, credentials, timer_enabled, delay, messages)
-                       VALUES (%s, %s, %s, %s, %s)
-                       ON CONFLICT (user_id) DO UPDATE
-                       SET credentials = %s""",
-                    (user_id, json.dumps(credentials), False, 300, 0, json.dumps(credentials)))
+        return cur.execute("""INSERT INTO users (user_id, credentials, timer_enabled, delay, messages)
+                              VALUES (%s, %s, %s, %s, %s)
+                              ON CONFLICT (user_id) DO UPDATE
+                              SET credentials = %s""",
+                              (user_id, json.dumps(credentials), False, 300, 0, json.dumps(credentials)))
+
+@log.logfn(logger)
+def save_delay(conn, user_id, delay):
+    with conn, conn.cursor() as cur:
+        return cur.execute("UPDATE users SET delay = %s WHERE user_id = %s", (delay, user_id,))
 
 @log.logfn(logger)
 def get_credentials(conn, user_id):

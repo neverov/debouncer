@@ -49,8 +49,10 @@ def stop():
 @app.route('/set-delay', methods=['POST'])
 def set_delay():
     delay = flask.request.form['delay']
+    conn = app.config['CONNECTION']
+    user_id = flask.session['user_id']
     logger.info('setting user\'s timer to {}'.format(delay))
-    flask.session['delay'] = delay
+    storage.save_delay(conn, user_id, delay)
     return flask.redirect(flask.url_for('index'))
 
 @app.route('/admin')
