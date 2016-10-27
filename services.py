@@ -146,11 +146,8 @@ def run(conn, restart_fn):
                 storage.save_run(conn, user_id, 0)
             logger.info('run for user: {} completed'.format(user_id))
             logger.info('timer restarted')
-
-    except error: #swallow all exceptions
-        logger.error('timer failed to run: {}'.format(error))        
-
-    restart_fn(conn) # continue to run timer no matter what
+    finally: # continue to run timer no matter what
+        restart_fn(conn)
 
 @log.logfn(logger)
 def credentials(conn, user_id):
