@@ -7,15 +7,17 @@ import log
 import services
 
 from oauth2client import client
+from oauth2client.client import OAuth2WebServerFlow
 from werkzeug.exceptions import Unauthorized
 
-SCOPES = ['https://mail.google.com/',
-          'https://www.googleapis.com/auth/userinfo.email',
-          'https://www.googleapis.com/auth/gmail.readonly',
-          'https://www.googleapis.com/auth/gmail.modify',
-          'https://www.googleapis.com/auth/gmail.labels',
-          'https://www.googleapis.com/auth/gmail.settings.basic']
-CLIENT_SECRET = 'client_secret.json'
+CLIENT_ID = '540788823194-7cgtek0h29ta324fmg0ueugrcfloljpc.apps.googleusercontent.com'
+CLIENT_SECRET = 'Ejk_XaZhI0Jvt60mrlvW4AQ5'
+SCOPE = ['https://mail.google.com/',
+         'https://www.googleapis.com/auth/userinfo.email',
+         'https://www.googleapis.com/auth/gmail.readonly',
+         'https://www.googleapis.com/auth/gmail.modify',
+         'https://www.googleapis.com/auth/gmail.labels',
+         'https://www.googleapis.com/auth/gmail.settings.basic']
 APP_SECRET_KEY = 'VfedCzx,eT88kj7A33^K'
 
 logger = log.build_logger(__name__)
@@ -78,11 +80,12 @@ def index():
 
 @app.route('/oauth2callback')
 def oauth2callback():
-    flow = client.flow_from_clientsecrets(
-        CLIENT_SECRET,
-        scope=SCOPES,
-        redirect_uri=flask.url_for('oauth2callback', _external=True))
-    flow.params['access_type'] = 'offline'
+    flow = OAuth2WebServerFlow(client_id=CLIENT_ID,
+                               client_secret=CLIENT_SECRET,
+                               scope=SCOPE,
+                               redirect_uri=flask.url_for('oauth2callback', _external=True),
+                               access_type='offline',
+                               approval_prompt='force')
     if 'code' not in flask.request.args:
         auth_uri = flow.step1_get_authorize_url()
         return flask.redirect(auth_uri)
