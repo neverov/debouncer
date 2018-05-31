@@ -8,10 +8,10 @@
 </div>
 <div>
   <form method='post' action='timer/start'>
-    <input type=submit value='Start debouncer' {% if enabled %}disabled{% endif %}></button>
+    <input type='submit' value='Start debouncer' {% if enabled %}disabled{% endif %}>
   </form>
   <form method='post' action='timer/stop'>
-    <input type=submit value='Stop debouncer' {% if not enabled %}disabled{% endif %}></button>
+    <input type='submit' value='Stop debouncer' {% if not enabled %}disabled{% endif %}>
   </form>
 </div>
 <div>
@@ -20,4 +20,10 @@
     <input type="text" name='delay' value="{{delay}}">
     <input type='submit' value='Save'>
   </form>
+  <div>
+    <form method='post' action='logout'>
+      <label for='logout'>Logout</label>
+      <input type='submit' value='Logout'>
+    </form>
+  </div>
 </div>
