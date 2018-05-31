@@ -106,10 +106,10 @@ def logout():
         logger.info('no credentials, nothing to revoke')
         return 'ok'
     else:
-        flask.session.pop('user_id')
-        #credentials = client.OAuth2Credentials.from_json(flask.session['credentials'])
-        #credentials.revoke(httplib2.Http())
-        # TODO remove creds from session
+        user_id = flask.session.pop('user_id')
+        conn = app.config['CONNECTION']
+        logger.info('stopping timer for user: {}'.format(user_id))
+        storage.save_timer(conn, user_id, False)
         logger.info('credentials revoked')
         return 'ok'
 
