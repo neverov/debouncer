@@ -1,5 +1,5 @@
 import psycopg2
-import urllib.parse
+import urllib.parse as urlparse
 import json
 import log
 from psycopg2.extras import RealDictCursor

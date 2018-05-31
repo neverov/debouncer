@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+
+[packages]
+gunicorn = "*"
+"httplib2" = "==0.9.2"
+google-api-python-client = "*"
+"psycopg2" = "*"
+Flask = "*"
+
+[requires]
+python_version = "3.6"

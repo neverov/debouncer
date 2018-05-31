@@ -1,5 +1,0 @@
-flask
-gunicorn
-httplib2==0.9.2
-google-api-python-client
-psycopg2-binary
