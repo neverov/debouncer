@@ -2,10 +2,8 @@ from __future__ import print_function
 import psycopg2
 import urlparse
 import json
-
-from psycopg2.extras import RealDictCursor
-
 import log
+from psycopg2.extras import RealDictCursor
 
 logger = log.build_logger(__name__)
 
