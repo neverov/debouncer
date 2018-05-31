@@ -138,6 +138,8 @@ def run(conn, restart_fn):
                         'removeLabelIds': [label_id]}
                 logger.info('moving {} messages to inbox'.format(messages_count))
                 for m in messages:
+                    # if message has been archived during debounce period, don't move it
+
                     id = m['id']
                     service.users().messages().modify(userId=user_id,
                                                       id=id,
