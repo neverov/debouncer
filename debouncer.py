@@ -100,7 +100,7 @@ def oauth2callback():
         flask.session['user_id'] = user_id
         return flask.redirect(flask.url_for('index'))
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
     if 'user_id' not in flask.session:
         logger.info('no credentials, nothing to revoke')
