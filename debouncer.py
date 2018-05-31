@@ -10,8 +10,8 @@ from oauth2client import client
 from oauth2client.client import OAuth2WebServerFlow
 from werkzeug.exceptions import Unauthorized
 
-CLIENT_ID = '540788823194-7cgtek0h29ta324fmg0ueugrcfloljpc.apps.googleusercontent.com'
-CLIENT_SECRET = 'Ejk_XaZhI0Jvt60mrlvW4AQ5'
+CLIENT_ID = os.environ['CLIENT_ID']
+CLIENT_SECRET = os.environ['CLIENT_SECRET']
 SCOPE = ['https://mail.google.com/',
          'https://www.googleapis.com/auth/userinfo.email',
          'https://www.googleapis.com/auth/gmail.readonly',
