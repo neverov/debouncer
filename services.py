@@ -85,7 +85,7 @@ def authorize(user_id, credentials):
             logger.info('special filter created')
         logger.info('special filter found, moving on')
         logger.info('user setup complete')
-    except (errors.HttpError, error):
+    except errors.HttpError as error:
         logger.error('authorization error: %s', error)
         if error.resp.status == 401:
             print('authorization error: credentials revoked')
