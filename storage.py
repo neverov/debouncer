@@ -1,6 +1,5 @@
-from __future__ import print_function
 import psycopg2
-import urlparse
+import urllib.parse
 import json
 import log
 from psycopg2.extras import RealDictCursor
